@@ -97,13 +97,13 @@ contract DelegationDAO is AccessControl {
     function add_stake() external payable onlyRole(MEMBER) {
         if (currentState == daoState.STAKING ) {
             // Sanity check
-            if(!staking.is_delegator(address(this))){
+            if(!staking.isDelegator(address(this))){
                  revert("The DAO is in an inconsistent state.");
             }
             memberStakes[msg.sender] = memberStakes[msg.sender].add(msg.value);
             totalStake = totalStake.add(msg.value);
             emit deposit(msg.sender, msg.value);
-            staking.delegator_bond_more(target, msg.value);
+            staking.delegatorBondMore(target, msg.value);
         }
         else if  (currentState == daoState.COLLECTING ){
             memberStakes[msg.sender] = memberStakes[msg.sender].add(msg.value);
@@ -113,7 +113,7 @@ contract DelegationDAO is AccessControl {
                 return;
             } else {
                 //initialiate the delegation and change the state          
-                staking.delegate(target, address(this).balance, staking.candidate_delegation_count(target), staking.delegator_delegation_count(address(this)));
+                staking.delegate(target, address(this).balance, staking.candidateDelegationCount(target), staking.delegatorDelegationCount(address(this)));
                 currentState = daoState.STAKING;
             }
         }
@@ -131,7 +131,7 @@ contract DelegationDAO is AccessControl {
         }
         if (currentState == daoState.REVOKED || currentState == daoState.COLLECTING) {
             //Sanity checks
-            if(staking.is_delegator(address(this))){
+            if(staking.isDelegator(address(this))){
                  revert("The DAO is in an inconsistent state.");
             }
             require(totalStake!=0, "Cannot divide by zero.");
@@ -151,15 +151,15 @@ contract DelegationDAO is AccessControl {
     // Schedule revoke, admin only
     function schedule_revoke() public onlyRole(DEFAULT_ADMIN_ROLE){
         require(currentState == daoState.STAKING, "The DAO is not in the correct state to schedule a revoke.");
-        staking.schedule_revoke_delegation(target);
+        staking.scheduleRevokeDelegation(target);
         currentState = daoState.REVOKING;
     }
     
     // Try to execute the revoke, returns true if it succeeds, false if it doesn't
     function execute_revoke() internal onlyRole(MEMBER) returns(bool) {
         require(currentState == daoState.REVOKING, "The DAO is not in the correct state to execute a revoke.");
-        staking.execute_delegation_request(address(this), target);
-        if (staking.is_delegator(address(this))){
+        staking.executeDelegationRequest(address(this), target);
+        if (staking.isDelegator(address(this))){
             return false;
         } else {
             currentState = daoState.REVOKED;
